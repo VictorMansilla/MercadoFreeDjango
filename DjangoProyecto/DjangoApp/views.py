@@ -53,7 +53,7 @@ def Generar_Token(nombre_usuario_token, id_usuario_token):
 
 
 @api_view(['GET'])
-def Velidar_Usuario(request):
+def Validar_Usuario(request):
     datos = request.data
     nombre_usuario = datos['nombre_usuario']
 
@@ -87,16 +87,16 @@ def Actualizar_Usuario(request):
 
             if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
                 nueva_contrasegna_usuario = datos['nueva_contrasegna_usuario']
-                email_usuario = datos['email_usuario']
-                telefono_usuario = datos['telefono_usuario']
+                nuevo_email_usuario = datos['nuevo_email_usuario']
+                nuevo_telefono_usuario = datos['nuevo_telefono_usuario']
 
                 contrasegna_en_bytes =  nueva_contrasegna_usuario.encode('utf-8')
                 contrasegna_Hasheada = bcrypt.hashpw(contrasegna_en_bytes, bcrypt.gensalt())
 
                 datos_usuario.nombre_usuario = nuevo_nombre_usuario
                 datos_usuario.contrasegna_usuario = contrasegna_Hasheada
-                datos_usuario.email_usuario = email_usuario
-                datos_usuario.telefono_usuario = telefono_usuario
+                datos_usuario.email_usuario = nuevo_email_usuario
+                datos_usuario.telefono_usuario = nuevo_telefono_usuario
                 datos_usuario.save()
                 return Response({'Completado':'Datos del usuario actualizados'}, status=status.HTTP_200_OK)
                 
@@ -230,3 +230,4 @@ def Obtener_un_Producto(request, ID_Producto):
 
 
 #    data = [{"id": item.id, "name": item.name, "description": item.description} for item in items]
+

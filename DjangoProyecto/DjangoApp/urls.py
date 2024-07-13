@@ -1,12 +1,15 @@
 from django.urls import path
-from .views import Crear_Usuario, Crear_Producto, Obtener_Productos, Obtener_un_Producto, Velidar_Usuario, Actualizar_Usuario, Eliminar_Usuario
+from .views import Crear_Usuario, Validar_Usuario, Actualizar_Usuario, Eliminar_Usuario, Crear_Producto, Editar_Producto, Eliminar_Producto, Obtener_Productos, Obtener_un_Producto
 
 urlpatterns = [
-    path("api/Usuarios/", Crear_Usuario, name='Crear_Usuario'),
-    path("api/Crear_Producto/", Crear_Producto, name='Crear_Producto'),
-    path("api/Productos/", Obtener_Productos, name="Obtener_Productos"),
-    path("api/Producto/<int:ID_Producto>", Obtener_un_Producto, name="Obtener_un_Producto"),
-    path('api/Velidar_Usuario', Velidar_Usuario, name='Velidar_Usuario'),
-    path('api/Actualizar_Usuario', Actualizar_Usuario, name='Actualizar_Usuario'),
-    path('api/Eliminar_Usuario', Eliminar_Usuario, name='Eliminar_Usuario')
+    path("Crear_Usuario/", Crear_Usuario, name='Crear_Usuario'),
+    path('Validar_Usuario/', Validar_Usuario, name='Validar_Usuario'),
+    path('Actualizar_Usuario/', Actualizar_Usuario, name='Actualizar_Usuario'),
+    path('Eliminar_Usuario/', Eliminar_Usuario, name='Eliminar_Usuario'),
+    
+    path("Crear_Producto/", Crear_Producto, name='Crear_Producto'),
+    path("Editar_Producto/", Editar_Producto, name='Editar_Producto'),
+    path("Eliminar_Producto/", Eliminar_Producto, name='Eliminar_Producto'),
+    path("Productos/", Obtener_Productos, name="Obtener_Productos"),
+    path("Producto/<int:ID_Producto>", Obtener_un_Producto, name="Obtener_un_Producto")
 ]
