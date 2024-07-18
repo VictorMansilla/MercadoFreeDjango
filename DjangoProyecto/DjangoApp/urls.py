@@ -1,5 +1,6 @@
 from django.urls import path
-from .views import Crear_Usuario, Validar_Usuario, Actualizar_Usuario, Eliminar_Usuario, Crear_Producto, Editar_Producto, Eliminar_Producto, Obtener_Productos, Obtener_un_Producto
+from .views import Crear_Usuario, Validar_Usuario, Actualizar_Usuario, Eliminar_Usuario, Crear_Producto, Editar_Producto, Eliminar_Producto, Obtener_Productos, Obtener_un_Producto, Buscar_producto
+from .payment import Paypal
 
 urlpatterns = [
     path("Crear_Usuario/", Crear_Usuario, name='Crear_Usuario'),
@@ -11,5 +12,9 @@ urlpatterns = [
     path("Editar_Producto/", Editar_Producto, name='Editar_Producto'),
     path("Eliminar_Producto/", Eliminar_Producto, name='Eliminar_Producto'),
     path("Productos/", Obtener_Productos, name="Obtener_Productos"),
-    path("Producto/<int:ID_Producto>", Obtener_un_Producto, name="Obtener_un_Producto")
+    path("Producto/<int:ID_Producto>", Obtener_un_Producto, name="Obtener_un_Producto"),
+
+    path("Paypal/", Paypal, name="Paypal"),
+    
+    path("Buscar_producto/", Buscar_producto, name="Buscar_producto"),
 ]
