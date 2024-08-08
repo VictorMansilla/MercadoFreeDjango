@@ -1,14 +1,19 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from django.conf import settings
 
-from .models import Usuario, Producto
+from .models import Usuario, Producto, Registro_Usuarios
 from .serializer import ProductoSerializers
+from .token import Generar_Token, clave_secreta, algoritmo
 
 import bcrypt
 import jwt
 import datetime
+import redis
 import os
+
+redis_instance = redis.StrictRedis.from_url(settings.CACHES['default']['LOCATION'])
 
 @api_view(['POST'])
 def Crear_Usuario(request):
@@ -19,14 +24,19 @@ def Crear_Usuario(request):
 
             if Usuario.objects.filter(nombre_usuario = nombre_usuario).exists() is False:
                 contrasegna_usuario = datos['contrasegna_usuario']
-                email_usuario = datos['email_usuario']
-                telefono_usuario = datos['telefono_usuario']
+                email_usuario = datos.get('email_usuario', None)
+                telefono_usuario = datos.get('telefono_usuario', None)
 
                 Contrasegna_en_bytes =  contrasegna_usuario.encode('utf-8')   #Encoding de la contraseña en formato bytes
                 Contrasegna_Hasheada = bcrypt.hashpw(Contrasegna_en_bytes, bcrypt.gensalt())   #Hashear la contraseña en formato bytes, en el ingreso a la base de datos de decodea la contraseña para almacenarla en la base de datos
 
                 ingreso_usuario_database = Usuario(nombre_usuario = nombre_usuario, contrasegna_usuario = Contrasegna_Hasheada.decode('utf-8'), email_usuario = email_usuario, telefono_usuario = telefono_usuario)
                 ingreso_usuario_database.save()
+
+                usuario = Usuario.objects.get(nombre_usuario = nombre_usuario)
+
+                crear_registro = Registro_Usuarios(accion_nombre = 'agregar', accion_usuario_id = usuario.id, accion_usuario_nombre = nombre_usuario, accion_momento = datetime.datetime.utcnow())
+                crear_registro.save()
                 return Response({'Completado':'El usuario fue ingresado'}, status=status.HTTP_201_CREATED)
 
             else:return Response({'Inválido':'El usuario ya existe'}, status=status.HTTP_302_FOUND)
@@ -35,21 +45,6 @@ def Crear_Usuario(request):
 
     except ValueError:
         return Response({'Error':'No hay valores requeridos'}, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-segundos_exp = int(os.getenv('segundos_exp'))
-clave_secreta = os.getenv('clave_secreta')   #secrets.token_hex(62)
-algoritmo = list(os.getenv('algoritmo'))
-
-def Generar_Token(nombre_usuario_token, id_usuario_token):
-    payload = {
-        'Id_usuario' : id_usuario_token,
-        'nombre_usuario' : nombre_usuario_token,
-        'exp' : datetime.datetime.utcnow() + datetime.timedelta(seconds=segundos_exp)}
-    token = jwt.encode(payload, clave_secreta, algorithm=os.getenv('algoritmo'))
-    print(token)
-    return token
 
 
 
@@ -65,6 +60,8 @@ def Validar_Usuario(request):
 
             if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
                 token = Generar_Token(datos_usuario.nombre_usuario, datos_usuario.id)
+                crear_registro = Registro_Usuarios(accion_nombre = 'ingresar', accion_usuario_id = datos_usuario.id, accion_usuario_nombre = datos_usuario.nombre_usuario, accion_momento = datetime.datetime.utcnow())
+                crear_registro.save()
                 return Response({'Si se puede':'Contraseña válida', 'token' : f'{token}'}, status=status.HTTP_200_OK)
 
             else:return Response({'Si se puede':'Contraseña inválida'}, status=status.HTTP_201_CREATED)
@@ -73,6 +70,16 @@ def Validar_Usuario(request):
 
     except ValueError:
         return Response({'Error':'No hay valores requeridos'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+def Desvalidar_Usuario(request):
+    datos = request.data
+    token = datos.get('token')
+    expiration_time = os.environ.get('segundos_exp')
+    redis_instance.setex(token, expiration_time, "revoked")
+    return Response({'Completado':'Usuario deslogueado'}, status=status.HTTP_200_OK)
 
 
 
@@ -93,17 +100,19 @@ def Actualizar_Usuario(request):
 
                 if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
                     nueva_contrasegna_usuario = datos['nueva_contrasegna_usuario']
-                    nuevo_email_usuario = datos['nuevo_email_usuario']
-                    nuevo_telefono_usuario = datos['nuevo_telefono_usuario']
+                    nuevo_email_usuario = datos.get('nuevo_email_usuario', None)
+                    nuevo_telefono_usuario = datos.get('nuevo_telefono_usuario', None)
 
                     contrasegna_en_bytes =  nueva_contrasegna_usuario.encode('utf-8')
                     contrasegna_Hasheada = bcrypt.hashpw(contrasegna_en_bytes, bcrypt.gensalt())
 
                     datos_usuario.nombre_usuario = nuevo_nombre_usuario
-                    datos_usuario.contrasegna_usuario = contrasegna_Hasheada
+                    datos_usuario.contrasegna_usuario = contrasegna_Hasheada.decode('utf-8')
                     datos_usuario.email_usuario = nuevo_email_usuario
                     datos_usuario.telefono_usuario = nuevo_telefono_usuario
                     datos_usuario.save()
+                    crear_registro = Registro_Usuarios(accion_nombre = 'editar', accion_usuario_id = datos_usuario.id, accion_usuario_nombre = datos_usuario.nombre_usuario, accion_momento = datetime.datetime.utcnow())
+                    crear_registro.save()
                     return Response({'Completado':'Datos del usuario actualizados'}, status=status.HTTP_200_OK)
                     
                 else:return Response({'Si se puede':'Contraseña inválida'}, status=status.HTTP_201_CREATED)
@@ -130,18 +139,26 @@ def Eliminar_Usuario(request):
         try:
             token_deployado = jwt.decode(token, clave_secreta, algorithms=algoritmo)
 
-            if Usuario.objects.filter(nombre_usuario = token_deployado['nombre_usuario']).exists():
-                datos_usuario = Usuario.objects.get(nombre_usuario=token_deployado['nombre_usuario'])
-                contrasegna_usuario = datos['contrasegna_usuario']
+            if redis_instance.get(token) != b"revoked":
 
-                if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
-                    usuario_a_eliminar = Usuario.objects.filter(id = token_deployado['Id_usuario'])
-                    usuario_a_eliminar.delete()
-                    return Response({'Completado':'Usuario eliminado'}, status=status.HTTP_200_OK)
+                if Usuario.objects.filter(nombre_usuario = token_deployado['nombre_usuario']).exists():
+                    datos_usuario = Usuario.objects.get(nombre_usuario=token_deployado['nombre_usuario'])
+                    contrasegna_usuario = datos['contrasegna_usuario']
 
-                else:return Response({'Si se puede':'Contraseña inválida'}, status=status.HTTP_201_CREATED)
-            
-            else:return Response({'Inválido':'El usuario no existe'}, status=status.HTTP_302_FOUND)
+                    if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
+                        usuario_a_eliminar = Usuario.objects.get(id = token_deployado['Id_usuario'])
+                        usuario_a_eliminar.delete()
+                        eliminar_productos_usuario = Producto.objects.get(producto_usuario = token_deployado['Id_usuario'])
+                        eliminar_productos_usuario.delete()
+                        crear_registro = Registro_Usuarios(accion_nombre = 'borrar', accion_usuario_id = datos_usuario.id, accion_usuario_nombre = datos_usuario.nombre_usuario, accion_momento = datetime.datetime.utcnow())
+                        crear_registro.save()
+                        return Response({'Completado':'Usuario eliminado'}, status=status.HTTP_200_OK)
+
+                    else:return Response({'Si se puede':'Contraseña inválida'}, status=status.HTTP_201_CREATED)
+                
+                else:return Response({'Inválido':'El usuario no existe'}, status=status.HTTP_302_FOUND)
+
+            else:return Response({'Completado':'Usuario deslogueado'}, status=status.HTTP_200_OK)
 
         except jwt.ExpiredSignatureError:
             return Response({'Error' : "El token a expirado"}, status=status.HTTP_406_NOT_ACCEPTABLE)
@@ -158,17 +175,21 @@ def Eliminar_Usuario(request):
 def Crear_Producto(request):
     try:
         datos = request.data
+        token = datos['token']
         producto_nombre = datos['producto_nombre']
         producto_precio = datos['producto_precio']
-        producto_descripcion = datos['producto_descripcion']
-        token = datos['token']
+        producto_descripcion = datos.get('producto_descripcion', None)
 
         try:
+            print(token)
+            print(clave_secreta)
+            print(algoritmo)
             token_deployado = jwt.decode(token, clave_secreta, algorithms=algoritmo)
 
             ingresar_producto_database = Producto(producto_nombre = producto_nombre, producto_precio = producto_precio, producto_descripcion = producto_descripcion, producto_usuario = token_deployado['Id_usuario'])
             ingresar_producto_database.save()
-            
+            crear_registro = Registro_Usuarios(accion_nombre = 'agregar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_momento = datetime.datetime.utcnow())
+            crear_registro.save()
             return Response({'Completado':'El producto fue ingresado'}, status=status.HTTP_201_CREATED)
         
         except jwt.ExpiredSignatureError:
@@ -176,6 +197,7 @@ def Crear_Producto(request):
         
         except jwt.InvalidTokenError:
             return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
+        
     except ValueError:
         return Response({'Error':'No hay valores requeridos'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -199,7 +221,8 @@ def Editar_Producto(request):
             datos_producto.producto_precio = nuevo_producto_precio
             datos_producto.producto_descripcion = nueva_producto_descripcion
             datos_producto.save()
-
+            crear_registro = Registro_Usuarios(accion_nombre = 'editar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_momento = datetime.datetime.utcnow())
+            crear_registro.save()
             return Response({'Hecho' : "Producto actualizado"}, status=status.HTTP_205_RESET_CONTENT)
 
         except jwt.ExpiredSignatureError:
@@ -224,6 +247,8 @@ def Eliminar_Producto(request):
             id_producto = datos['id_producto']
             producto_a_eliminar = Producto.objects.filter(id = id_producto)
             producto_a_eliminar.delete()
+            crear_registro = Registro_Usuarios(accion_nombre = 'borrar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_momento = datetime.datetime.utcnow())
+            crear_registro.save()
             return Response({'Hecho' : "El producto fue eliminado"}, status=status.HTTP_200_OK)
 
         except jwt.ExpiredSignatureError:
@@ -257,9 +282,6 @@ def Obtener_un_Producto(request, ID_Producto):
 
 
 
-#    data = [{"id": item.id, "name": item.name, "description": item.description} for item in items]
-
-from .serializer import ProductoSerializers
 from django.db.models import Q
 
 @api_view(['GET'])
