@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from django.conf import settings
+#from typing import List, Dict
 
 from .models import Usuario, Producto, Registro_Usuarios
 from .serializer import ProductoSerializers
@@ -20,15 +21,15 @@ def Crear_Usuario(request):
     try:
         datos = request.data
         if datos:
-            nombre_usuario = datos['nombre_usuario']
+            nombre_usuario:str = datos['nombre_usuario']
 
             if Usuario.objects.filter(nombre_usuario = nombre_usuario).exists() is False:
-                contrasegna_usuario = datos['contrasegna_usuario']
-                email_usuario = datos.get('email_usuario', None)
-                telefono_usuario = datos.get('telefono_usuario', None)
+                contrasegna_usuario:str = datos['contrasegna_usuario']
+                email_usuario:str = datos.get('email_usuario', None)
+                telefono_usuario:int = datos.get('telefono_usuario', None)
 
-                Contrasegna_en_bytes =  contrasegna_usuario.encode('utf-8')   #Encoding de la contraseña en formato bytes
-                Contrasegna_Hasheada = bcrypt.hashpw(Contrasegna_en_bytes, bcrypt.gensalt())   #Hashear la contraseña en formato bytes, en el ingreso a la base de datos de decodea la contraseña para almacenarla en la base de datos
+                Contrasegna_en_bytes:str =  contrasegna_usuario.encode('utf-8')   #Encoding de la contraseña en formato bytes
+                Contrasegna_Hasheada:str = bcrypt.hashpw(Contrasegna_en_bytes, bcrypt.gensalt())   #Hashear la contraseña en formato bytes, en el ingreso a la base de datos de decodea la contraseña para almacenarla en la base de datos
 
                 ingreso_usuario_database = Usuario(nombre_usuario = nombre_usuario, contrasegna_usuario = Contrasegna_Hasheada.decode('utf-8'), email_usuario = email_usuario, telefono_usuario = telefono_usuario)
                 ingreso_usuario_database.save()
@@ -52,14 +53,14 @@ def Crear_Usuario(request):
 def Validar_Usuario(request):
     try:
         datos = request.data
-        nombre_usuario = datos['nombre_usuario']
+        nombre_usuario:str = datos['nombre_usuario']
 
         if Usuario.objects.filter(nombre_usuario=nombre_usuario).exists():
-            contrasegna_usuario = datos['contrasegna_usuario']
+            contrasegna_usuario:str = datos['contrasegna_usuario']
             datos_usuario = Usuario.objects.get(nombre_usuario=nombre_usuario)
 
             if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
-                token = Generar_Token(datos_usuario.nombre_usuario, datos_usuario.id)
+                token:str = Generar_Token(datos_usuario.nombre_usuario, datos_usuario.id)
                 crear_registro = Registro_Usuarios(accion_nombre = 'ingresar', accion_usuario_id = datos_usuario.id, accion_usuario_nombre = datos_usuario.nombre_usuario, accion_momento = datetime.datetime.utcnow())
                 crear_registro.save()
                 return Response({'Si se puede':'Contraseña válida', 'token' : f'{token}'}, status=status.HTTP_200_OK)
@@ -76,7 +77,7 @@ def Validar_Usuario(request):
 @api_view(['POST'])
 def Desvalidar_Usuario(request):
     datos = request.data
-    token = datos.get('token')
+    token:str = datos.get('token')
     expiration_time = os.environ.get('segundos_exp')
     redis_instance.setex(token, expiration_time, "revoked")
     return Response({'Completado':'Usuario deslogueado'}, status=status.HTTP_200_OK)
