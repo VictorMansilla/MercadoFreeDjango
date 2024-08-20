@@ -1,2 +1,5 @@
 .env
-venv/
+/venv/
+/DjangoProyecto/DjangoApp/__pycache__/
+/DjangoProyecto/DjangoApp/migrations/
+/DjangoProyecto/DjangoProyecto/__pycache__/
