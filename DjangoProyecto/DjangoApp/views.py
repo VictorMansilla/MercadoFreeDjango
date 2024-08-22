@@ -20,6 +20,7 @@ redis_instance = redis.StrictRedis.from_url(settings.CACHES['default']['LOCATION
 def Crear_Usuario(request):
     try:
         datos = request.data
+        
         if datos:
             nombre_usuario:str = datos['nombre_usuario']
 
@@ -52,7 +53,7 @@ def Crear_Usuario(request):
 @api_view(['GET'])
 def Validar_Usuario(request):
     try:
-        datos = request.data
+        datos:dict = request.data
         nombre_usuario:str = datos['nombre_usuario']
 
         if Usuario.objects.filter(nombre_usuario=nombre_usuario).exists():
