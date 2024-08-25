@@ -63,13 +63,6 @@ DATABASES = {
         default='postgresql://postgres:postgres@localhost:5432/mysite',
         conn_max_age=600)
 }
-"""'ENGINE': os.getenv('ENGINE'),
-        'NAME': os.getenv('NAME'),
-        'USER': os.getenv('USER'),
-        'PASSWORD': os.getenv('PASSWORD'),
-        'HOST': os.getenv('HOST'),  # por lo general 'localhost' o una dirección IP
-        'PORT': os.getenv('PORT'),   # por lo general '5432'"""
-
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -109,5 +102,5 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
-}
+}#os.getenv('REDIS_URL')
 #________________________________________________________________________________________________________________________________________
