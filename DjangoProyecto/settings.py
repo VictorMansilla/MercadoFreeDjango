@@ -64,6 +64,17 @@ DATABASES = {
         conn_max_age=600)
 }
 
+""" DATABASES = {
+    'default': {
+        'ENGINE': os.getenv('ENGINE'),
+        'NAME': os.getenv('NAME'),
+        'USER': os.getenv('USER'),
+        'PASSWORD': os.getenv('PASSWORD'),
+        'HOST': os.getenv('HOST'),  # por lo general 'localhost' o una dirección IP
+        'PORT': os.getenv('PORT'),   # por lo general '5432'
+    }
+} """
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -102,5 +113,5 @@ CACHES = {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
         }
     }
-}#os.getenv('REDIS_URL')
+}#os.getenv('REDIS_URL') 'redis://127.0.0.1:6379/1'
 #________________________________________________________________________________________________________________________________________
