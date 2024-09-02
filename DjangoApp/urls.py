@@ -14,7 +14,7 @@ urlpatterns = [
     path("Editar_Producto/", Editar_Producto, name='Editar_Producto'),
     path("Eliminar_Producto/", Eliminar_Producto, name='Eliminar_Producto'),
     path("Productos/", Obtener_Productos, name="Obtener_Productos"),
-    path("Producto/<int:ID_Producto>", Obtener_un_Producto, name="Obtener_un_Producto"),
+    path("Producto/<ID_Producto>", Obtener_un_Producto, name="Obtener_un_Producto"),
 
     path("Paypal/", Paypal, name="Paypal"),
     
