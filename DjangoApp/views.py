@@ -20,8 +20,8 @@ redis_instance = redis.StrictRedis.from_url(settings.CACHES['default']['LOCATION
 def Crear_Usuario(request):
     try:
         datos:Dict = request.data
-        
         nombre_usuario:str = datos['nombre_usuario']
+        
         if Usuario.objects.filter(nombre_usuario = nombre_usuario).exists() is False:
             contrasegna_usuario:str = datos['contrasegna_usuario']
             email_usuario:str = datos.get('email_usuario', None)
@@ -39,7 +39,7 @@ def Crear_Usuario(request):
         
         else:return Response({'Inválido':'El usuario ya existe'}, status=status.HTTP_302_FOUND)
 
-    except KeyError as e:return Response({'Error':f'Datos no enviados en {str(e)}'}, status=status.HTTP_204_NO_CONTENT)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -112,7 +112,7 @@ def Actualizar_Usuario(request):
                     datos_usuario.contrasegna_usuario = contrasegna_Hasheada.decode('utf-8')
                     datos_usuario.email_usuario = nuevo_email_usuario
                     datos_usuario.telefono_usuario = nuevo_telefono_usuario
-                    nuevo_nombre_usuario:str = datos['nuevo_nombre_usuario']
+                    nuevo_nombre_usuario:str = datos.get('nuevo_nombre_usuario', datos_usuario.nombre_usuario)
 
                     if nuevo_nombre_usuario != datos_usuario.nombre_usuario:
 
