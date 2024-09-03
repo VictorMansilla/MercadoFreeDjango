@@ -39,7 +39,7 @@ def Crear_Usuario(request):
         
         else:return Response({'Inválido':'El usuario ya existe'}, status=status.HTTP_302_FOUND)
 
-    except Exception as e:return Response({'Error':f'Datos no enviados en {str(e)}'}, status=status.HTTP_204_NO_CONTENT)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {str(e)}'}, status=status.HTTP_204_NO_CONTENT)
 
 
 
@@ -63,7 +63,7 @@ def Validar_Usuario(request):
         
         else:return Response({'Error':'El usuario no existe'}, status=status.HTTP_404_NOT_FOUND)
 
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -83,7 +83,7 @@ def Desvalidar_Usuario(request):
 
     except jwt.InvalidTokenError:return Response({'Error':'Error en la validación del token'}, status=status.HTTP_409_CONFLICT)
 
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -138,7 +138,7 @@ def Actualizar_Usuario(request):
                 
     except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
         
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -181,7 +181,7 @@ def Eliminar_Usuario(request):
                 
     except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
         
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -207,7 +207,7 @@ def Crear_Producto(request):
                 
     except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
         
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -240,7 +240,7 @@ def Editar_Producto(request):
                 
     except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
         
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE'])
@@ -266,7 +266,7 @@ def Eliminar_Producto(request):
                 
     except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
         
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -290,7 +290,7 @@ def Obtener_un_Producto(request, ID_Producto):
         
         else:return Response({'Error':'No existe ese producto'}, status=status.HTTP_404_NOT_FOUND)
     
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
     except ValueError:return Response({'Error':f'{ID_Producto} no es un entero y debe serlo'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -311,7 +311,7 @@ def Buscar_producto(request):
             
         else:return Response({'Error':'No se enviaron datos a buscar'}, status=status.HTTP_400_BAD_REQUEST)
 
-    except Exception as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
     except ValueError:return Response({'Error':'Ocurrió un error'}, status=status.HTTP_400_BAD_REQUEST)
         
