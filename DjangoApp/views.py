@@ -16,6 +16,8 @@ import os
 
 redis_instance = redis.StrictRedis.from_url(settings.CACHES['default']['LOCATION'])
 
+lista_carrito:list = []
+
 @api_view(['POST'])
 def Crear_Usuario(request):
     try:
@@ -185,7 +187,6 @@ def Eliminar_Usuario(request):
 
 
 
-
 @api_view(['POST'])
 def Crear_Producto(request):
     try:
@@ -272,9 +273,12 @@ def Eliminar_Producto(request):
 
 @api_view(['GET'])
 def Obtener_Productos(request):
-    datos = Producto.objects.all()
-    productos = ProductoSerializers(datos, many=True)
-    return Response(productos.data, status=status.HTTP_200_OK)
+    try:
+        datos = Producto.objects.all()
+        productos = ProductoSerializers(datos, many=True)
+        return Response(productos.data, status=status.HTTP_200_OK)
+
+    except ValueError:return Response({'Error':'No se pudo obtener los productos'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -314,4 +318,51 @@ def Buscar_producto(request):
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
 
     except ValueError:return Response({'Error':'Ocurrió un error'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+def Agregar_Producto_a_Carrito(request):
+    try:
+        datos:Dict = request.data
+        ID_Producto:int = datos['ID_Producto']
+        datos_producto = Producto.objects.filter(id=ID_Producto)
+        if datos_producto.exists():
+            lista_carrito.append(ID_Producto)
+            return Response({'Hecho':f'Producto {ID_Producto} agregado al carrito'}, status=status.HTTP_200_OK)
         
+        else:return Response({'Error':'No existe ese producto'}, status=status.HTTP_404_NOT_FOUND)
+
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except ValueError:return Response({'Error':f'{ID_Producto} no es un entero y debe serlo'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
+def Eliminar_Producto_del_Carrito(request):
+    try:
+        datos:Dict = request.data
+        ID_Producto:int = datos['ID_Producto']
+        if ID_Producto in lista_carrito:
+            lista_carrito.remove(ID_Producto)
+            return Response({'Hecho':f'Se eliminó el producto {ID_Producto} del carrito'}, status=status.HTTP_200_OK)
+        
+        else:return Response({'Error':f'No existe el producto {ID_Producto} en la lista del carrito'}, status=status.HTTP_204_NO_CONTENT)
+
+    except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except ValueError:return Response({'Error':f'{ID_Producto} no es un entero y debe serlo'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['GET'])
+def Obtener_Total_Carrito(request):
+    try:
+        total:int = 0
+        for producto_id in lista_carrito:
+            datos = Producto.objects.get(id=producto_id)
+            total += datos.producto_precio
+        return Response({'Hecho':f'La lista de productos elegidos es {lista_carrito}', 'Carrito' : f'El total del carrito es de {total}'}, status=status.HTTP_200_OK)
+
+    except KeyError as e:return Response({'Error':'Ocurrió un error al procesar el carrito'}, status=status.HTTP_406_NOT_ACCEPTABLE)
