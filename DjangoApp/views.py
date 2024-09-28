@@ -6,7 +6,7 @@ from typing import List, Dict
 
 from .models import Usuario, Producto, Registro_Usuarios, Registro_Productos
 from .serializer import ProductoSerializers
-from .token import Generar_Token, clave_secreta, algoritmo
+from .token import Deployar_Token, Generar_Token, clave_secreta, algoritmo
 
 import bcrypt
 import jwt
@@ -45,7 +45,7 @@ def Crear_Usuario(request):
 
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 def Validar_Usuario(request):
     try:
         datos:Dict = request.data
@@ -72,20 +72,23 @@ def Validar_Usuario(request):
 @api_view(['POST'])
 def Desvalidar_Usuario(request):
     try:
-        datos:Dict = request.data
-        token:str = datos['token']
-        token_payload:str = jwt.decode(token, os.getenv('clave_secreta'), os.getenv('algoritmo'))
-        expiration_time = os.environ.get('segundos_exp')
-        redis_instance.setex(token, expiration_time, "revoked")
-        return Response({'Completado':'Usuario deslogueado'}, status=status.HTTP_200_OK)
-    
-    except jwt.DecodeError:return Response({'Error':'Error al decodificar el token'}, status=status.HTTP_400_BAD_REQUEST)
+        auth_headre = request.headers.get('Authorization')
 
-    except jwt.ExpiredSignatureError:return Response({'Error':'El token a expirado'}, status=status.HTTP_406_NOT_ACCEPTABLE)
+        if auth_headre is None or not auth_headre.startswith('Bearer '):
+            return Response({'Error': 'Token no provisto en el header'}, status=status.HTTP_400_BAD_REQUEST)
+        token:str = auth_headre.split(' ')[1]
 
-    except jwt.InvalidTokenError:return Response({'Error':'Error en la validación del token'}, status=status.HTTP_409_CONFLICT)
+        if redis_instance.get(token) != b'revoked':
+            token_payload = Deployar_Token(token)
+            expiration_time = os.environ.get('segundos_exp')
+            redis_instance.setex(token, expiration_time, "revoked")
+            return Response({'Completado':'Usuario deslogueado'}, status=status.HTTP_200_OK)
+        
+        else:return Response({'Error':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
 
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:return Response({'Error': f'Ocurrió un error en el servidor: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -93,10 +96,14 @@ def Desvalidar_Usuario(request):
 def Actualizar_Usuario(request):
     try:
         datos:Dict = request.data
-        token:str = datos['token']
+        auth_headre = request.headers.get('Authorization')
+
+        if auth_headre is None or not auth_headre.startswith('Bearer '):
+            return Response({'Error': 'Token no provisto en el header'}, status=status.HTTP_400_BAD_REQUEST)
+        token:str = auth_headre.split(' ')[1]
 
         if redis_instance.get(token) != b'revoked':
-            token_deployado:str = jwt.decode(token, clave_secreta, algorithms=algoritmo)
+            token_deployado = Deployar_Token(token)
 
             if Usuario.objects.filter(nombre_usuario = token_deployado['nombre_usuario']).exists():
                 contrasegna_usuario = datos['contrasegna_usuario']
@@ -132,15 +139,11 @@ def Actualizar_Usuario(request):
 
             else:return Response({'Error':'El usuario no existe'}, status=status.HTTP_306_RESERVED)
 
-        else:return Response({'Completado':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
-        
-    except jwt.DecodeError:return Response({'Error':'Error al decodificar el token'}, status=status.HTTP_400_BAD_REQUEST)
-
-    except jwt.ExpiredSignatureError:return Response({'Error' : "El token a expirado"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-    except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
+        else:return Response({'Error':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
         
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:return Response({'Error': f'Ocurrió un error en el servidor: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -148,10 +151,14 @@ def Actualizar_Usuario(request):
 def Eliminar_Usuario(request):
     try:
         datos:Dict = request.data
-        token:str = datos['token']
+        auth_headre = request.headers.get('Authorization')
 
+        if auth_headre is None or not auth_headre.startswith('Bearer '):
+            return Response({'Error': 'Token no provisto en el header'}, status=status.HTTP_400_BAD_REQUEST)
+        token:str = auth_headre.split(' ')[1]
+        
         if redis_instance.get(token) != b"revoked":
-            token_deployado = jwt.decode(token, clave_secreta, algorithms=algoritmo)
+            token_deployado = Deployar_Token(token)
 
             if Usuario.objects.filter(nombre_usuario = token_deployado['nombre_usuario']).exists():
                 datos_usuario = Usuario.objects.get(nombre_usuario=token_deployado['nombre_usuario'])
@@ -165,7 +172,6 @@ def Eliminar_Usuario(request):
                         for producto in eliminar_productos_usuario:
                             crear_registro_productos = Registro_Productos(accion_nombre = 'borrar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = producto.id, accion_momento = datetime.datetime.utcnow())
                             crear_registro_productos.save()
-                        eliminar_productos_usuario.delete()
                     crear_registro = Registro_Usuarios(accion_nombre = 'borrar', accion_usuario_id = datos_usuario.id, accion_usuario_nombre = datos_usuario.nombre_usuario, accion_momento = datetime.datetime.utcnow())
                     crear_registro.save()
                     usuario_a_eliminar.delete()
@@ -175,15 +181,11 @@ def Eliminar_Usuario(request):
             
             else:return Response({'Error':'El usuario no existe'}, status=status.HTTP_404_NOT_FOUND)
             
-        else:return Response({'Completado':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
+        else:return Response({'Error':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
 
-    except jwt.DecodeError:return Response({'Error':'Error al decodificar el token'}, status=status.HTTP_400_BAD_REQUEST)
-
-    except jwt.ExpiredSignatureError:return Response({'Error' : "El token a expirado"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-    except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
-        
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:return Response({'Error': f'Ocurrió un error en el servidor: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -191,24 +193,29 @@ def Eliminar_Usuario(request):
 def Crear_Producto(request):
     try:
         datos:Dict = request.data
-        token:str = datos['token']
-        token_deployado = jwt.decode(token, clave_secreta, algorithms=algoritmo)
-        producto_nombre:str = datos['producto_nombre']
-        producto_precio:int = datos['producto_precio']
-        producto_descripcion:str = datos.get('producto_descripcion', None)
-        ingresar_producto_database = Producto(producto_nombre = producto_nombre, producto_precio = producto_precio, producto_descripcion = producto_descripcion, producto_usuario = token_deployado['Id_usuario'])
-        ingresar_producto_database.save()
-        crear_registro_productos = Registro_Productos(accion_nombre = 'agregar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = ingresar_producto_database.id, accion_momento = datetime.datetime.utcnow())
-        crear_registro_productos.save()
-        return Response({'Completado':'El producto fue ingresado'}, status=status.HTTP_201_CREATED)
-        
-    except jwt.DecodeError:return Response({'Error':'Error al decodificar el token'}, status=status.HTTP_400_BAD_REQUEST)
+        auth_headre = request.headers.get('Authorization')
 
-    except jwt.ExpiredSignatureError:return Response({'Error' : "El token a expirado"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-    except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
+        if auth_headre is None or not auth_headre.startswith('Bearer '):
+            return Response({'Error': 'Token no provisto en el header'}, status=status.HTTP_400_BAD_REQUEST)
+        token:str = auth_headre.split(' ')[1]
+
+        if redis_instance.get(token) != b"revoked":
+            token_deployado = Deployar_Token(token)
+            producto_nombre:str = datos['producto_nombre']
+            producto_precio:int = datos['producto_precio']
+            producto_descripcion:str = datos.get('producto_descripcion', None)
+            usuario = Usuario.objects.get(id = token_deployado['Id_usuario'])
+            ingresar_producto_database = Producto(producto_nombre = producto_nombre, producto_precio = producto_precio, producto_descripcion = producto_descripcion, producto_usuario = usuario)
+            ingresar_producto_database.save()
+            crear_registro_productos = Registro_Productos(accion_nombre = 'agregar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = ingresar_producto_database.id, accion_momento = datetime.datetime.utcnow())
+            crear_registro_productos.save()
+            return Response({'Completado':'El producto fue ingresado'}, status=status.HTTP_201_CREATED)
+        
+        else:return Response({'Error':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
         
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Exception as e:return Response({'Error': f'Ocurrió un error en el servidor: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -216,58 +223,67 @@ def Crear_Producto(request):
 def Editar_Producto(request):
     try:
         datos:Dict = request.data
-        token:str = datos['token']
-        token_deployado = jwt.decode(token, clave_secreta, algorithms=algoritmo)
-        id_producto:int = datos['id_producto']
-        nuevo_producto_nombre:str = datos['nuevo_producto_nombre']
-        nuevo_producto_precio:int = datos['nuevo_producto_precio']
-        nueva_producto_descripcion:str = datos.get('nueva_producto_descripcion', None)
+        auth_headre = request.headers.get('Authorization')
 
-        if Producto.objects.filter(id = id_producto).exists():
-            datos_producto = Producto.objects.get(id = id_producto)
-            datos_producto.producto_nombre = nuevo_producto_nombre
-            datos_producto.producto_precio = nuevo_producto_precio
-            datos_producto.producto_descripcion = nueva_producto_descripcion
-            datos_producto.save()
-            crear_registro_productos = Registro_Productos(accion_nombre = 'editar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = id_producto, accion_momento = datetime.datetime.utcnow())
-            crear_registro_productos.save()
-            return Response({'Hecho' : "Producto actualizado"}, status=status.HTTP_205_RESET_CONTENT)
-        
-        else:return Response({'Error':'No existe ese producto'}, status=status.HTTP_404_NOT_FOUND)
+        if auth_headre is None or not auth_headre.startswith('Bearer '):
+            return Response({'Error': 'Token no provisto en el header'}, status=status.HTTP_400_BAD_REQUEST)
+        token:str = auth_headre.split(' ')[1]
 
-    except jwt.DecodeError:return Response({'Error':'Error al decodificar el token'}, status=status.HTTP_400_BAD_REQUEST)
+        if redis_instance.get(token) != b"revoked":
+            token_deployado = Deployar_Token(token)
+            id_producto:int = datos['id_producto']
+            nuevo_producto_nombre:str = datos['nuevo_producto_nombre']
+            nuevo_producto_precio:int = datos['nuevo_producto_precio']
+            nueva_producto_descripcion:str = datos.get('nueva_producto_descripcion', None)
 
-    except jwt.ExpiredSignatureError:return Response({'Error' : "El token a expirado"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-    except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
-        
+            if Producto.objects.filter(id = id_producto).exists():
+                datos_producto = Producto.objects.get(id = id_producto)
+                datos_producto.producto_nombre = nuevo_producto_nombre
+                datos_producto.producto_precio = nuevo_producto_precio
+                datos_producto.producto_descripcion = nueva_producto_descripcion
+                datos_producto.save()
+                crear_registro_productos = Registro_Productos(accion_nombre = 'editar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = id_producto, accion_momento = datetime.datetime.utcnow())
+                crear_registro_productos.save()
+                return Response({'Hecho' : "Producto actualizado"}, status=status.HTTP_205_RESET_CONTENT)
+
+            else:return Response({'Error':'No existe ese producto'}, status=status.HTTP_404_NOT_FOUND)
+
+        else:return Response({'Error':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
+
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:return Response({'Error': f'Ocurrió un error en el servidor: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @api_view(['DELETE'])
 def Eliminar_Producto(request):
     try:
         datos:Dict = request.data
-        token:str = datos['token']
-        token_deployado = jwt.decode(token, clave_secreta, algorithms=algoritmo)
-        id_producto = datos['id_producto']
+        auth_headre = request.headers.get('Authorization')
 
-        if Producto.objects.filter(id = id_producto).exists():
-            producto_a_eliminar = Producto.objects.filter(id = id_producto)
-            producto_a_eliminar.delete()
-            crear_registro_productos = Registro_Productos(accion_nombre = 'borrar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = id_producto, accion_momento = datetime.datetime.utcnow())
-            crear_registro_productos.save()
-            return Response({'Hecho' : "El producto fue eliminado"}, status=status.HTTP_200_OK)
-        
-        else:return Response({'Error':'No existe ese producto'}, status=status.HTTP_404_NOT_FOUND)
-            
-    except jwt.DecodeError:return Response({'Error':'Error al decodificar el token'}, status=status.HTTP_400_BAD_REQUEST)
+        if auth_headre is None or not auth_headre.startswith('Bearer '):
+            return Response({'Error': 'Token no provisto en el header'}, status=status.HTTP_400_BAD_REQUEST)
+        token:str = auth_headre.split(' ')[1]
 
-    except jwt.ExpiredSignatureError:return Response({'Error' : "El token a expirado"}, status=status.HTTP_406_NOT_ACCEPTABLE)
-                
-    except jwt.InvalidTokenError:return Response({'Error' : "Error en la validación del token"}, status=status.HTTP_409_CONFLICT)
-        
+        if redis_instance.get(token) != b"revoked":
+            token_deployado = Deployar_Token(token)
+            id_producto = datos['id_producto']
+
+            if Producto.objects.filter(id = id_producto).exists():
+                producto_a_eliminar = Producto.objects.filter(id = id_producto)
+                producto_a_eliminar.delete()
+                crear_registro_productos = Registro_Productos(accion_nombre = 'borrar', accion_usuario_id = token_deployado['Id_usuario'], accion_usuario_nombre = token_deployado['nombre_usuario'], accion_producto_id = id_producto, accion_momento = datetime.datetime.utcnow())
+                crear_registro_productos.save()
+                return Response({'Hecho' : "El producto fue eliminado"}, status=status.HTTP_200_OK)
+
+            else:return Response({'Error':'No existe ese producto'}, status=status.HTTP_404_NOT_FOUND)
+
+        else:return Response({'Error':'Usuario no logueado'}, status=status.HTTP_423_LOCKED)
+
     except KeyError as e:return Response({'Error':f'Datos no enviados en {e}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:return Response({'Error': f'Ocurrió un error en el servidor: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

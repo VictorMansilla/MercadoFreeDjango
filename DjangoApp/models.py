@@ -1,5 +1,7 @@
 from django.db import models
 
+
+
 class Usuario(models.Model):
     nombre_usuario = models.CharField(null=False, max_length=200, unique=True)
     contrasegna_usuario = models.CharField(null=False, max_length=300)
@@ -9,14 +11,18 @@ class Usuario(models.Model):
     def __str__(self):
         return self.nombre_usuario
 
+
+
 class Producto(models.Model):
     producto_nombre = models.CharField(null=False, max_length=100)
     producto_precio = models.IntegerField(null=False)
     producto_descripcion = models.CharField(null=True, max_length=700)
-    producto_usuario = models.IntegerField(null=False)
+    producto_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.producto_nombre
+
+
 
 class Registro_Usuarios(models.Model):
     accion_opciones = [
@@ -31,6 +37,8 @@ class Registro_Usuarios(models.Model):
 
     def __str__(self):
         return self.accion_nombre
+
+
 
 class Registro_Productos(models.Model):
     accion_opciones = [
