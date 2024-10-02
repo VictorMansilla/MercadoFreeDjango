@@ -9,7 +9,6 @@ from .serializer import ProductoSerializers
 from .token import Deployar_Token, Generar_Token, clave_secreta, algoritmo
 
 import bcrypt
-import jwt
 import datetime
 import redis
 import os

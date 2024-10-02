@@ -3,3 +3,4 @@
 /DjangoApp/__pycache__/
 /DjangoApp/migrations/
 /DjangoProyecto/__pycache__/
+/.pytest_cache/
