@@ -6,7 +6,7 @@ from typing import List, Dict
 
 from .models import Usuario, Producto, Registro_Usuarios, Registro_Productos
 from .serializer import ProductoSerializers
-from .token import Deployar_Token, Generar_Token, clave_secreta, algoritmo
+from .token import Deployar_Token, Generar_Token
 
 import bcrypt
 import datetime
@@ -111,13 +111,17 @@ def Actualizar_Usuario(request):
 
                 if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
                     nueva_contrasegna_usuario:str = datos['nueva_contrasegna_usuario']
+                    
+                    if nueva_contrasegna_usuario != None:
+                        contrasegna_en_bytes:bytes =  nueva_contrasegna_usuario.encode('utf-8')
+                        contrasegna_Hasheada:str = bcrypt.hashpw(contrasegna_en_bytes, bcrypt.gensalt())
+                        datos_usuario.contrasegna_usuario = contrasegna_Hasheada.decode('utf-8')
+
+
                     nuevo_email_usuario:str = datos.get('nuevo_email_usuario', datos_usuario.email_usuario)
                     nuevo_telefono_usuario:str = datos.get('nuevo_telefono_usuario', datos_usuario.telefono_usuario)
 
-                    contrasegna_en_bytes:bytes =  nueva_contrasegna_usuario.encode('utf-8')
-                    contrasegna_Hasheada:str = bcrypt.hashpw(contrasegna_en_bytes, bcrypt.gensalt())
 
-                    datos_usuario.contrasegna_usuario = contrasegna_Hasheada.decode('utf-8')
                     datos_usuario.email_usuario = nuevo_email_usuario
                     datos_usuario.telefono_usuario = nuevo_telefono_usuario
                     nuevo_nombre_usuario:str = datos.get('nuevo_nombre_usuario', datos_usuario.nombre_usuario)
