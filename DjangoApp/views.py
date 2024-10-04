@@ -110,10 +110,10 @@ def Actualizar_Usuario(request):
 
 
                 if bcrypt.checkpw(contrasegna_usuario.encode('utf-8') , datos_usuario.contrasegna_usuario.encode('utf-8')):
-                    nueva_contrasegna_usuario:str = datos['nueva_contrasegna_usuario']
+                    nueva_contrasegna_usuario:str = datos.get('nuevo_telefono_usuario')
                     
                     if nueva_contrasegna_usuario != None:
-                        contrasegna_en_bytes:bytes =  nueva_contrasegna_usuario.encode('utf-8')
+                        contrasegna_en_bytes:bytes = nueva_contrasegna_usuario.encode('utf-8')
                         contrasegna_Hasheada:str = bcrypt.hashpw(contrasegna_en_bytes, bcrypt.gensalt())
                         datos_usuario.contrasegna_usuario = contrasegna_Hasheada.decode('utf-8')
 
